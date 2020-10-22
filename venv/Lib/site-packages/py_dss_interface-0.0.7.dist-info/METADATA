@@ -1,0 +1,110 @@
+Metadata-Version: 2.1
+Name: py-dss-interface
+Version: 0.0.7
+Summary: opendsspy is a Windows Python package providing access to OpenDSS direct dll version of OpenDSS.
+Home-page: https://github.com/PauloRadatz/py_dss_interface
+Author: Paulo Radatz
+Author-email: paulo.radatz@gmail.com
+License: MIT
+Project-URL: Documentation, https://py_dss_interface.readthedocs.io/
+Project-URL: Changelog, https://py_dss_interface.readthedocs.io/en/latest/changelog.html
+Project-URL: Issue Tracker, https://github.com/PauloRadatz/py_dss_interface/issues
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Topic :: Utilities
+Requires-Python: >=3.6
+Requires-Dist: comtypes
+Provides-Extra: dev
+Requires-Dist: pytest ; extra == 'dev'
+Requires-Dist: pytest-cov ; extra == 'dev'
+Requires-Dist: sphinx-rtd-theme ; extra == 'dev'
+Requires-Dist: nbsphinx ; extra == 'dev'
+Requires-Dist: black ; extra == 'dev'
+Requires-Dist: pre-commit ; extra == 'dev'
+Requires-Dist: tox ; extra == 'dev'
+Requires-Dist: twine ; extra == 'dev'
+
+========
+Overview
+========
+
+
+
+py-dss-interface is a Windows Python package providing access to OpenDSS direct dll version of OpenDSS - Version 9.1.0.1 (64-bit build); License Status: Open and Version 9.1.0.1 (32-bit build); License Status: Open.
+
+* Free software: MIT license
+
+Disclaimer
+============
+This Python Package is purely responsibility of Paulo Radatz and not his employer. Use this package at your own risk.
+
+Installation
+============
+
+::
+
+    pip install py-dss-interface
+
+Documentation
+=============
+You can access the documentation through:
+
+1 - The Read the Docs (the only problem is that it could not generate the doc using the docstring from the DSSDLL class. This class uses ctypes in a way that just works with Windows, but the Read the Docs uses linux to create it - Any help would be great!)
+
+https://py_dss_interface.readthedocs.io/
+
+2 - Well, there is a solution (I hate it, but works), you can download the docs created offline and open that in your browser.
+
+https://github.com/PauloRadatz/py_dss_interface/tree/master/docs/my_doc
+
+3 - Another good resource is the OpenDSS_Direct_DLL.pdf doc created by Davis Montenegro. The package has been done based on this documentation.
+
+https://sourceforge.net/p/electricdss/code/HEAD/tree/trunk/Version8/Distrib/Doc/OpenDSS_Direct_DLL.pdf
+
+
+Thanks
+=============
+Thanks to Celso Rocha for starting the main script with me back in 2016/2017.
+
+
+
+
+Changelog
+=========
+
+0.0.7 (2020-10-22)
+------------------
+
+* PVsystems updated.
+* Update OpenDSS version to: OpenDSS Version 9.1.0.1 (64-bit build); License Status: Open.
+* Allowing to write values into Variant methods.
+
+
+0.0.4 (2020-08-17)
+------------------
+
+* DSSDLL class can receive OpenDSS folder in order to use the user own OpenDSS.
+
+0.0.1 (2020-06-12)
+------------------
+
+* Integrating CI.
+
+
+0.0.0 (2020-06-12)
+------------------
+
+* First release on PyPI.
+
+
