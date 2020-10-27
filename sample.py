@@ -40,57 +40,6 @@ def get_ev_soc():
     return soc_init, soc_min, soc_hini
 
 
-# FUNÇÃO DE POTÊCIA GERADA DA PV
-def get_pv_sample():
-    # Função de distribuição de probabilidade da radiação solar
-    radiation = ss.beta.pdf(np.linspace(0, 1, 24), ALFA_PV, BETA_PV, 0, 1)  # beta [Yaotang, 2016]
-    radiation = radiation * R_FACTOR
-    # Configurando a curva da potência gerada kW
-    pv = [0] * 24
-    for n in range(np.size(pv)):
-        if 0 <= radiation[n] < R_CERTAIN_POINT:
-            pv[n] = PV_POWER_GENERATION * (radiation[n] ** 2 / (R_CERTAIN_POINT * R_STANDARD_CONDITION))
-        elif R_CERTAIN_POINT <= radiation[n] < R_STANDARD_CONDITION:
-            pv[n] = PV_POWER_GENERATION * (radiation[n] / R_STANDARD_CONDITION)
-        elif radiation[n] >= R_STANDARD_CONDITION:
-            pv[n] = PV_POWER_GENERATION
-
-    return pv
-
-
-# CONFIGURANDO AMOSTRA EV
-def get_ev_sample():
-    # SOC do veículo elétrico
-    soc_init, soc_min, soc_hini = get_ev_soc()
-
-    # Estimando tempos do carregamento
-    t_duration_charge = np.random.randint(2, 6)
-    t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
-    while t_start_charge > 24:
-        t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
-
-    # Construindo curva
-    curve = [0] * (t_start_charge - 1)
-    curve.extend([1] * t_duration_charge)
-    if len(curve) < 24:
-        curve.extend([0] * (24 - len(curve)))
-    else:
-        curve_aux = curve[24:]
-        n = len(curve_aux)
-        for i in range(n):
-            curve[i] = curve_aux[i]
-        curve = curve[0:24]
-
-    # Energia do carro
-    energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
-    power = energy / t_duration_charge
-
-    # construindo objeto
-    ev = Electricvehicle(soc_init, soc_min, soc_hini, curve, power)
-
-    return ev
-
-
 class Sample:
     def __init__(self, load):
         self.load = load
@@ -100,6 +49,55 @@ class Sample:
         load = np.random.normal(self.load, SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
 
         return load
+
+    # FUNÇÃO DE POTÊCIA GERADA DA PV
+    def get_pv_sample(self):
+        # Função de distribuição de probabilidade da radiação solar
+        radiation = ss.beta.pdf(np.linspace(0, 1, 24), ALFA_PV, BETA_PV, 0, 1)  # beta [Yaotang, 2016]
+        radiation = radiation * R_FACTOR
+        # Configurando a curva da potência gerada kW
+        pv = [0] * 24
+        for n in range(np.size(pv)):
+            if 0 <= radiation[n] < R_CERTAIN_POINT:
+                pv[n] = PV_POWER_GENERATION * (radiation[n] ** 2 / (R_CERTAIN_POINT * R_STANDARD_CONDITION))
+            elif R_CERTAIN_POINT <= radiation[n] < R_STANDARD_CONDITION:
+                pv[n] = PV_POWER_GENERATION * (radiation[n] / R_STANDARD_CONDITION)
+            elif radiation[n] >= R_STANDARD_CONDITION:
+                pv[n] = PV_POWER_GENERATION
+
+        return pv
+
+    # CONFIGURANDO AMOSTRA EV
+    def get_ev_sample(self):
+        # SOC do veículo elétrico
+        soc_init, soc_min, soc_hini = get_ev_soc()
+
+        # Estimando tempos do carregamento
+        t_duration_charge = np.random.randint(2, 6)
+        t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
+        while t_start_charge > 24:
+            t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
+
+        # Construindo curva
+        curve = [0] * (t_start_charge - 1)
+        curve.extend([1] * t_duration_charge)
+        if len(curve) < 24:
+            curve.extend([0] * (24 - len(curve)))
+        else:
+            curve_aux = curve[24:]
+            n = len(curve_aux)
+            for i in range(n):
+                curve[i] = curve_aux[i]
+            curve = curve[0:24]
+
+        # Energia do carro
+        energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
+        power = energy / t_duration_charge
+
+        # construindo objeto
+        ev = Electricvehicle(soc_init, soc_min, soc_hini, curve, power)
+
+        return ev
 
 
 class Electricvehicle:

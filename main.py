@@ -2,9 +2,8 @@
 # NOME: LETÍCIA FRITZ HENRIQUE
 # E-MAIL: LETICIA.HENRIQUE@ENGENHARIA.UFJF.BR
 # PROJETO: FLUXO DE CARGA PROBABILISTICO COM RED
-# VERSÃO: 2.2
-# PROXIMO PASSO: 9. CALCULAR PDF DAS POTÊNCIAS DE SAÍDA; 10. AJUSTAR RESPOSTA DE MONTE CARLO;
-#                11. IMPLEMENTAR MÉTODO ANALÍTICO
+# VERSÃO: 2.3
+# PROXIMO PASSO: 11. TESTAR SMC; 12. IMPLEMENTAR MÉTODO ANALÍTICO
 #################################################################
 
 # BIBLIOTECAS
@@ -15,7 +14,7 @@ from montecarlo import Montecarlo
 def main():
 
     # Monte Carlo
-    simulation = Montecarlo(1)
+    simulation = Montecarlo(20)
     simulation.set_simulation()
 
 

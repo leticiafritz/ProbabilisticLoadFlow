@@ -7,6 +7,9 @@ import py_dss_interface
 import numpy as np
 
 from sample import Sample
+from probabilitydistfunc import Pdf
+from probabilitydistfunc import Pdfvoltagebus
+from probabilitydistfunc import Pdftotalvoltage
 
 # ---------- OBJETOS ----------
 dss = py_dss_interface.DSSDLL()
@@ -91,13 +94,13 @@ def get_daily_ev(sample):
     for item in EV_BUS_LIST:
         dss.loadshapes_write_name("LoadShape_ev_" + item)
         dss.loadshapes_write_npts(24)
-        dss.loadshapes_write_name("LoadShape_pv_" + item)
+        dss.loadshapes_write_name("LoadShape_ev_" + item)
         dss.loadshapes_write_hrinterval(1)
         # Gerando amostras
         ev = sample.get_ev_sample()
         ev_power[n] = ev.power
         n = n + 1
-        dss.loadshapes_write_name("LoadShape_pv_" + item)
+        dss.loadshapes_write_name("LoadShape_ev_" + item)
         dss.loadshapes_write_pmult(ev.curve)
         dss.loadshapes_normalize()
 
@@ -108,6 +111,13 @@ def get_daily_ev(sample):
         dss.text("~ conn=" + EV_BUS_CONNECTION_LIST[i] + " Model=" + str(EV_BUS_MODEL_LIST[i]))
         dss.text("~ kV=" + str(EV_BUS_KV_LIST[i]) + " kW=" + str(total_power) + " kVAR=10")
         dss.text("~ Status=variable daily=LoadShape_ev_" + EV_BUS_LIST[i])
+
+
+def get_all_monitors():
+    lines_name = dss.lines_allnames()
+    for item in lines_name:
+        dss.text("New Monitor.M" + item + "_power element=line." + item + " terminal=1 mode=1 ppolar=no")
+        dss.text("New Monitor.M" + item + "_voltage element=line." + item + " terminal=1 mode=0")
 
 
 class Montecarlo:
@@ -121,10 +131,30 @@ class Montecarlo:
         # Gerando amostras
         sample = Sample(load_det)
 
+        # Gerando vetores para o PDF
+        power_p = np.zeros(self.number)
+        power_q = np.zeros(self.number)
+        losses_p = np.zeros(self.number)
+        losses_q = np.zeros(self.number)
+
+        # Criando matrizes
+        vmag1_matrix = np.zeros((24, self.number))
+        vmag2_matrix = np.zeros((24, self.number))
+        vmag3_matrix = np.zeros((24, self.number))
+        vphase1_matrix = np.zeros((24, self.number))
+        vphase2_matrix = np.zeros((24, self.number))
+        vphase3_matrix = np.zeros((24, self.number))
+
+        # Criando matriz para os medidores
+        dss.text("compile {}".format(os.path.dirname(sys.argv[0]) + "/ieee34.dss"))
+        monitors_total_vmag1 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_vmag2 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_vmag3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+
         for n in range(self.number):
             # Compilando a rede
             dss.text("compile {}".format(os.path.dirname(sys.argv[0]) + "/ieee34.dss"))
-            dss.text("New Energymeter.M1 Line.L1 1")
+            dss.text("New Energymeter.Feeder Line.L1 1")
 
             # Colocando curva de carga nas barras
             get_daily_load(sample)
@@ -135,13 +165,64 @@ class Montecarlo:
             # Colocando curva de PEV
             get_daily_ev(sample)
 
-            dss.text("New Monitor.M1_power   element=line.L1   terminal=1   mode=1   ppolar=no")
-            dss.text("New Monitor.M1_voltage   element=line.L1   terminal=1   mode=0")
+            # Criando monitores para todas as barras
+            get_all_monitors()
+
+            # Solução
             dss.text("Set Mode=daily")
             dss.text("Set stepsize=1h")
             dss.text("Set number=24")
             dss.solution_solve()
 
-            dss.text("Plot Monitor object=M1_power Channels=(1,3,5)")
-            dss.text("Plot Monitor object=M1_voltage Channels=(1,3,5)")
-            dss.text("Plot loadshape object=loadshape_s860")
+            # Recebendo Medidor
+            power_p[n], power_q[n] = dss.meters_registervalues()[0], dss.meters_registervalues()[1]
+            losses_p[n], losses_q[n] = dss.meters_registervalues()[12], dss.meters_registervalues()[13]
+
+            # Recebendo Monitores Linha 19 (Barra 840)
+            dss.monitors_saveall()
+            for hour in range(24):
+                dss.monitors_write_name("Ml19_voltage")
+                vmag1_matrix[hour, n] = dss.monitors_channel(1)[hour]
+                dss.monitors_write_name("Ml19_voltage")
+                vphase1_matrix[hour, n] = dss.monitors_channel(2)[hour]
+                dss.monitors_write_name("Ml19_voltage")
+                vmag2_matrix[hour, n] = dss.monitors_channel(3)[hour]
+                dss.monitors_write_name("Ml19_voltage")
+                vphase2_matrix[hour, n] = dss.monitors_channel(4)[hour]
+                dss.monitors_write_name("Ml19_voltage")
+                vmag3_matrix[hour, n] = dss.monitors_channel(5)[hour]
+                dss.monitors_write_name("Ml19_voltage")
+                vphase3_matrix[hour, n] = dss.monitors_channel(6)[hour]
+
+            # Análise global da rede
+            monitors_name = dss.monitors_allnames()
+            i = 0
+            num = 0
+            for item in monitors_name:
+                if (i % 2) != 0:
+                    for hour in range(24):
+                        dss.monitors_write_name(item)
+                        monitors_total_vmag1[num, n * 24 + hour] = dss.monitors_channel(1)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_vmag2[num, n * 24 + hour] = dss.monitors_channel(3)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_vmag3[num, n * 24 + hour] = dss.monitors_channel(5)[hour]
+                    num = num + 1
+                i = i + 1
+
+        # Construindo pdf
+        pdf = Pdf(power_p, power_q, losses_p, losses_q)
+        pdf.get_pdf_plot()
+        pdf.get_pdf_csv()
+
+        # Construindo boxplot das tensões
+        allvoltagebus = Pdftotalvoltage(self.number, monitors_name, monitors_total_vmag1,
+                                        monitors_total_vmag2, monitors_total_vmag3)
+        allvoltagebus.get_voltage_all_bus_plot()
+        allvoltagebus.get_voltage_all_bus_csv()
+
+        # Construindo curva média de tensão
+        meanvoltage = Pdfvoltagebus(vmag1_matrix, vphase1_matrix, vmag2_matrix, vphase2_matrix,
+                                    vmag3_matrix, vphase3_matrix)
+        meanvoltage.get_mean_pdf_voltage_csv()
+        meanvoltage.get_pdf_voltage_plot()
