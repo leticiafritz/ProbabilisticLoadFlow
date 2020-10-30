@@ -19,6 +19,11 @@ class Pdf:
         plt.ylabel("PDF")
         plt.gcf().subplots_adjust(bottom=0.15)
         plt.savefig("plot_powerP.png", dpi=199)
+        ax = plt.gca()
+        line = ax.lines[0]
+        result = {'PowerP_x_kWh': line.get_xdata(), 'PowerP_y': line.get_ydata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_powerP.csv')
         # Plot Potência Reativa
         sns.set_theme(style="whitegrid")
         sns.displot(self.power_q, kind='kde')
@@ -26,6 +31,11 @@ class Pdf:
         plt.ylabel("PDF")
         plt.gcf().subplots_adjust(bottom=0.15)
         plt.savefig("plot_powerQ.png", dpi=199)
+        ax = plt.gca()
+        line = ax.lines[0]
+        result = {'PowerQ_x_kvarh': line.get_xdata(), 'PowerQ_y': line.get_ydata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_powerQ.csv')
         # Plot Perdas
         sns.set_theme(style="whitegrid")
         sns.displot(self.power_q, kind='kde')
@@ -33,6 +43,11 @@ class Pdf:
         plt.ylabel("PDF")
         plt.gcf().subplots_adjust(bottom=0.15)
         plt.savefig("plot_lossesP.png", dpi=199)
+        ax = plt.gca()
+        line = ax.lines[0]
+        result = {'LossesP_x_kWh': line.get_xdata(), 'LossesP_y': line.get_ydata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_lossesP.csv')
         # Plot reativas Perdas
         sns.set_theme(style="whitegrid")
         sns.displot(self.power_q, kind='kde')
@@ -40,6 +55,11 @@ class Pdf:
         plt.ylabel("PDF")
         plt.gcf().subplots_adjust(bottom=0.15)
         plt.savefig("plot_lossesQ.png", dpi=199)
+        ax = plt.gca()
+        line = ax.lines[0]
+        result = {'LossesQ_x_kWh': line.get_xdata(), 'LossesQ_y': line.get_ydata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_lossesQ.csv')
 
     def get_pdf_csv(self):
         # Criando dicionário
@@ -73,7 +93,13 @@ class Pdfvoltagebus:
         plt.gcf().subplots_adjust(bottom=0.15)
         plt.xlabel(r'$V_{840} [pu]$')
         plt.savefig("plot_voltage840.png", dpi=199)
-        plt.show()
+        ax = plt.gca()
+        line, line1, line2 = ax.lines[0], ax.lines[1], ax.lines[2]
+        result = {'voltage840_y1': line.get_ydata(), 'voltage840_x1_pu': line.get_xdata(),
+                  'voltage840_y2': line1.get_ydata(), 'voltage840_x2_pu': line1.get_xdata(),
+                  'voltage840_y3': line2.get_ydata(), 'voltage840_x3_pu': line2.get_xdata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_voltage840.csv')
 
     def get_mean_pdf_voltage_csv(self):
         # Criando dicionário
@@ -136,6 +162,11 @@ class Pdftotalvoltage:
         plt.ylabel("Voltage [pu]")
         plt.ylim((0.96, 1.06))
         plt.savefig("plot_total_voltage.png", dpi=199)
+        ax = plt.gca()
+        line = ax.lines[0]
+        result = {'total_voltage_x_pu': line.get_xdata(), 'total_voltage_y': line.get_ydata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_total_voltage.csv')
 
     def get_voltage_all_bus_csv(self):
         # Criando dicionário
@@ -154,3 +185,128 @@ class Pdftotalvoltage:
         df = pd.DataFrame(voltage_dict)
         # Gerando CSV
         df.to_csv('data_total_voltage.csv')
+
+
+class Pdfoutputpower:
+    def __init__(self, number, monitors_name, matrix_p1, matrix_q1, matrix_p2, matrix_q2, matrix_p3, matrix_q3):
+        monitors_name = [item for item in monitors_name if "_power" in item]
+        monitors_name = [monitors_name[21], monitors_name[22], monitors_name[29], monitors_name[31]]
+        matrix_p1 = [matrix_p1[21][:], matrix_p1[22][:], matrix_p1[29][:], matrix_p1[31][:]]
+        matrix_q1 = [matrix_q1[21][:], matrix_q1[22][:], matrix_q1[29][:], matrix_q1[31][:]]
+        matrix_p2 = [matrix_p2[21][:], matrix_p2[22][:], matrix_p2[29][:], matrix_p2[31][:]]
+        matrix_q2 = [matrix_q2[21][:], matrix_q2[22][:], matrix_q2[29][:], matrix_q2[31][:]]
+        matrix_p3 = [matrix_p3[21][:], matrix_p3[22][:], matrix_p3[29][:], matrix_p3[31][:]]
+        matrix_q3 = [matrix_q3[21][:], matrix_q3[22][:], matrix_q3[29][:], matrix_q3[31][:]]
+        self.number = number
+        self.monitors_name = monitors_name
+        self.matrix_p1 = matrix_p1
+        self.matrix_q1 = matrix_q1
+        self.matrix_p2 = matrix_p2
+        self.matrix_q2 = matrix_q2
+        self.matrix_p3 = matrix_p3
+        self.matrix_q3 = matrix_q3
+
+    def get_outputpower_ev_bus(self):
+        # Organizando dados
+        p1_output = []
+        p2_output = []
+        p3_output = []
+        monitors_output = list()
+        for i in range(len(self.monitors_name)):
+            for n in range(self.number * 24):
+                monitors_output.append(self.monitors_name[i])
+            p1_output_aux = self.matrix_p1[i]
+            p2_output_aux = self.matrix_p2[i]
+            p3_output_aux = self.matrix_p3[i]
+            if i == 0:
+                p1_output = p1_output_aux
+                p2_output = p2_output_aux
+                p3_output = p3_output_aux
+            else:
+                p1_output = np.concatenate((p1_output, p1_output_aux))
+                p2_output = np.concatenate((p2_output, p2_output_aux))
+                p3_output = np.concatenate((p3_output, p3_output_aux))
+
+        # Fase 1
+        data = {'bus': monitors_output, 'value': p1_output}
+        # Plot da potência de saída
+        sns.set_theme(style="darkgrid")
+        sns.displot(data=data, x="value", hue="bus", kind="kde")
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel('Power Phase 1 [MW]')
+        plt.savefig("plot_outputpower_p1.png", dpi=199)
+        ax = plt.gca()
+        line, line1, line2, line3 = ax.lines[0], ax.lines[1], ax.lines[2], ax.lines[3]
+        result = {'outputpower_y1': line.get_ydata(), 'outputpower_x1_pu': line.get_xdata(),
+                  'outputpower_y2': line1.get_ydata(), 'outputpower_x2_pu': line1.get_xdata(),
+                  'outputpower_y3': line2.get_ydata(), 'outputpower_x3_pu': line2.get_xdata(),
+                  'outputpower_y4': line3.get_ydata(), 'outputpower_x4_pu': line3.get_xdata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_outputpower_p1.csv')
+
+        # Fase 2
+        data = {'bus': monitors_output, 'value': p2_output}
+        # Plot da potência de saída
+        sns.set_theme(style="darkgrid")
+        sns.displot(data=data, x="value", hue="bus", kind="kde")
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel('Power Phase 2 [MW]')
+        plt.savefig("plot_outputpower_p2.png", dpi=199)
+        ax = plt.gca()
+        line, line1, line2, line3 = ax.lines[0], ax.lines[1], ax.lines[2], ax.lines[3]
+        result = {'outputpower_y1': line.get_ydata(), 'outputpower_x1_pu': line.get_xdata(),
+                  'outputpower_y2': line1.get_ydata(), 'outputpower_x2_pu': line1.get_xdata(),
+                  'outputpower_y3': line2.get_ydata(), 'outputpower_x3_pu': line2.get_xdata(),
+                  'outputpower_y4': line3.get_ydata(), 'outputpower_x4_pu': line3.get_xdata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_outputpower_p2.csv')
+
+        # Fase 3
+        data = {'bus': monitors_output, 'value': p3_output}
+        # Plot da potência de saída
+        sns.set_theme(style="darkgrid")
+        sns.displot(data=data, x="value", hue="bus", kind="kde")
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel('Power Phase 3 [MW]')
+        plt.savefig("plot_outputpower_p3.png", dpi=199)
+        ax = plt.gca()
+        line, line1, line2, line3 = ax.lines[0], ax.lines[1], ax.lines[2], ax.lines[3]
+        result = {'outputpower_y1': line.get_ydata(), 'outputpower_x1_pu': line.get_xdata(),
+                  'outputpower_y2': line1.get_ydata(), 'outputpower_x2_pu': line1.get_xdata(),
+                  'outputpower_y3': line2.get_ydata(), 'outputpower_x3_pu': line2.get_xdata(),
+                  'outputpower_y4': line3.get_ydata(), 'outputpower_x4_pu': line3.get_xdata()}
+        df = pd.DataFrame(result)
+        df.to_csv('plot_outputpower_p3.csv')
+
+    def get_mean_outputpower_ev_bus(self):
+        time = np.arange(24)
+        for i in range((self.number*3)-1):
+            time = np.concatenate((time, np.arange(24)))
+        p_type = np.concatenate(((['P1'] * self.number * 24), (['P3'] * self.number * 24), (['P2'] * self.number * 24)))
+
+        for i in range(len(self.monitors_name)):
+            bus1_ev = np.zeros((self.number * 24, 1))
+            bus2_ev = np.zeros((self.number * 24, 1))
+            bus3_ev = np.zeros((self.number * 24, 1))
+            num = 0
+            for simulation in range(self.number):
+                for hour in range(24):
+                    bus1_ev[num] = self.matrix_p1[i][num]
+                    bus2_ev[num] = self.matrix_p2[i][num]
+                    bus3_ev[num] = self.matrix_p3[i][num]
+                    num += 1
+            bus_ev = np.concatenate(([float(item) for item in bus1_ev],
+                                     [float(item) for item in bus2_ev],
+                                     [float(item) for item in bus3_ev]))
+            bus_ev_dict = {'time': time, 'type': p_type, 'value': bus_ev}
+            sns.relplot(x="time", y="value", hue="type", kind="line", data=bus_ev_dict)
+            plt.gcf().subplots_adjust(bottom=0.15)
+            plt.xlabel('Time [h]')
+            plt.ylabel('Output Power [MW]')
+            file_str = 'plot_outputpower_' + str(self.monitors_name[i]) + '_ev.png'
+            plt.savefig(file_str, dpi=199)
+            df = pd.DataFrame(bus_ev_dict)
+            file_str = 'plot_outputpower_' + str(self.monitors_name[i]) + '_ev.csv'
+            df.to_csv(file_str)
+
+            plt.show()

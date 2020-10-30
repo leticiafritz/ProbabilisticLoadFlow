@@ -10,6 +10,7 @@ from sample import Sample
 from probabilitydistfunc import Pdf
 from probabilitydistfunc import Pdfvoltagebus
 from probabilitydistfunc import Pdftotalvoltage
+from probabilitydistfunc import Pdfoutputpower
 
 # ---------- OBJETOS ----------
 dss = py_dss_interface.DSSDLL()
@@ -99,7 +100,7 @@ def get_daily_ev(sample):
         # Gerando amostras
         ev = sample.get_ev_sample()
         ev_power[n] = ev.power
-        n = n + 1
+        n += 1
         dss.loadshapes_write_name("LoadShape_ev_" + item)
         dss.loadshapes_write_pmult(ev.curve)
         dss.loadshapes_normalize()
@@ -137,7 +138,7 @@ class Montecarlo:
         losses_p = np.zeros(self.number)
         losses_q = np.zeros(self.number)
 
-        # Criando matrizes
+        # Criando matrizes de tensão
         vmag1_matrix = np.zeros((24, self.number))
         vmag2_matrix = np.zeros((24, self.number))
         vmag3_matrix = np.zeros((24, self.number))
@@ -150,6 +151,14 @@ class Montecarlo:
         monitors_total_vmag1 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
         monitors_total_vmag2 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
         monitors_total_vmag3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+
+        # Criando matrizes de potência
+        monitors_total_p1 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_q1 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_p2 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_q2 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_p3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
+        monitors_total_q3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
 
         for n in range(self.number):
             # Compilando a rede
@@ -194,7 +203,7 @@ class Montecarlo:
                 dss.monitors_write_name("Ml19_voltage")
                 vphase3_matrix[hour, n] = dss.monitors_channel(6)[hour]
 
-            # Análise global da rede
+            # Análise global da rede para tensão
             monitors_name = dss.monitors_allnames()
             i = 0
             num = 0
@@ -207,10 +216,32 @@ class Montecarlo:
                         monitors_total_vmag2[num, n * 24 + hour] = dss.monitors_channel(3)[hour]
                         dss.monitors_write_name(item)
                         monitors_total_vmag3[num, n * 24 + hour] = dss.monitors_channel(5)[hour]
-                    num = num + 1
-                i = i + 1
+                    num += 1
+                i += 1
 
-        # Construindo pdf
+            # Análise global da rede para potências de saída
+            monitors_name = dss.monitors_allnames()
+            i = 0
+            num = 0
+            for item in monitors_name:
+                if (i % 2) == 0:
+                    for hour in range(24):
+                        dss.monitors_write_name(item)
+                        monitors_total_p1[num, n * 24 + hour] = dss.monitors_channel(1)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_q1[num, n * 24 + hour] = dss.monitors_channel(2)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_p2[num, n * 24 + hour] = dss.monitors_channel(3)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_q2[num, n * 24 + hour] = dss.monitors_channel(4)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_p3[num, n * 24 + hour] = dss.monitors_channel(5)[hour]
+                        dss.monitors_write_name(item)
+                        monitors_total_q3[num, n * 24 + hour] = dss.monitors_channel(6)[hour]
+                    num += 1
+                i += 1
+
+        # Construindo pdf das magnitudes totais
         pdf = Pdf(power_p, power_q, losses_p, losses_q)
         pdf.get_pdf_plot()
         pdf.get_pdf_csv()
@@ -226,3 +257,10 @@ class Montecarlo:
                                     vmag3_matrix, vphase3_matrix)
         meanvoltage.get_mean_pdf_voltage_csv()
         meanvoltage.get_pdf_voltage_plot()
+
+        # Recebendo PDF das potências de todas as barras
+        alloutputpower = Pdfoutputpower(self.number, monitors_name, monitors_total_p1, monitors_total_q1,
+                                        monitors_total_p2, monitors_total_q2, monitors_total_p3, monitors_total_q3)
+        alloutputpower.get_outputpower_ev_bus()
+        alloutputpower.get_mean_outputpower_ev_bus()
+
