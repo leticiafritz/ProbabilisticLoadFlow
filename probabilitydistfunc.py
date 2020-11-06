@@ -280,7 +280,7 @@ class Pdfoutputpower:
 
     def get_mean_outputpower_ev_bus(self):
         time = np.arange(24)
-        for i in range((self.number*3)-1):
+        for i in range((self.number * 3) - 1):
             time = np.concatenate((time, np.arange(24)))
         p_type = np.concatenate(((['P1'] * self.number * 24), (['P3'] * self.number * 24), (['P2'] * self.number * 24)))
 
@@ -309,4 +309,44 @@ class Pdfoutputpower:
             file_str = 'plot_outputpower_' + str(self.monitors_name[i]) + '_ev.csv'
             df.to_csv(file_str)
 
-            plt.show()
+
+class Pdfoutputev:
+    def __init__(self, number, ev_parking_duration, ev_charging_time):
+        self.number = number
+        self.ev_parking_duration = ev_parking_duration
+        self.ev_charging_time = ev_charging_time
+
+    def get_parking_duration(self):
+        # Plot pdf do tempo de recarga do ev
+        sns.set_theme(style="darkgrid")
+        ev_parking_dict = {"value": self.ev_parking_duration}
+        df = pd.DataFrame.from_dict(ev_parking_dict)
+        sns.displot(data=df, x="value", kind="kde")
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel('Parking duration [hour]')
+        plt.ylabel('PDF')
+        plt.xlim(0, 10)
+        plt.savefig("plot_parking_duration.png", dpi=199)
+
+    def get_charging_time(self):
+        # Plot pdf do tempo de recarga do ev
+        sns.set_theme(style="darkgrid")
+        # Transformando vetor de curvas em vetor de horas
+        hour = 1
+        nem_charging_time = []
+        for item in self.ev_charging_time:
+            if item != 0:
+                aux = [hour] * item
+                nem_charging_time.extend(aux)
+            hour += 1
+            if hour == 25:
+                hour = 1
+        ev_charging_dict = {"value": nem_charging_time}
+        df = pd.DataFrame.from_dict(ev_charging_dict)
+        sns.displot(data=df, x="value", kind="kde")
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel('Time [h]')
+        plt.xlim(0, 24)
+        plt.ylabel('PDF')
+        plt.savefig("plot_charging_time.png", dpi=199)
+        plt.show()

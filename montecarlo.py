@@ -11,6 +11,7 @@ from probabilitydistfunc import Pdf
 from probabilitydistfunc import Pdfvoltagebus
 from probabilitydistfunc import Pdftotalvoltage
 from probabilitydistfunc import Pdfoutputpower
+from probabilitydistfunc import Pdfoutputev
 
 # ---------- OBJETOS ----------
 dss = py_dss_interface.DSSDLL()
@@ -108,15 +109,15 @@ def get_daily_ev(ev_curve, ev_power):
         dss.loadshapes_write_hrinterval(1)
         # Gerando amostras
         ev_power[n] = float(df_power.iloc[0, n])
-        ev_curve = [float(item) for item in df_curve.iloc[:, n]]
+        ev_curve_mult = [float(item) for item in df_curve.iloc[:, n]]
         n += 1
         dss.loadshapes_write_name("LoadShape_ev_" + item)
-        dss.loadshapes_write_pmult(ev_curve)
+        dss.loadshapes_write_pmult(ev_curve_mult)
         dss.loadshapes_normalize()
 
     # Criando carga PEV
     for i in range(len(EV_BUS_LIST)):
-        total_power = np.random.randint(int(EV_BUS_MAX_NUMBER_LIST[i] / 3), EV_BUS_MAX_NUMBER_LIST[i]) * ev_power[i]
+        total_power = ev_power[i]
         dss.text("New Load.EV_" + EV_BUS_LIST[i] + " bus1=" + EV_BUS_LIST[i] + " phases=3")
         dss.text("~ conn=" + EV_BUS_CONNECTION_LIST[i] + " Model=" + str(EV_BUS_MODEL_LIST[i]))
         dss.text("~ kV=" + str(EV_BUS_KV_LIST[i]) + " kW=" + str(total_power) + " kVAR=10")
@@ -140,7 +141,8 @@ class Montecarlo:
         load_det = pd.read_csv(os.path.dirname(sys.argv[0]) + "/curve_load.csv", header=0, sep=';')
 
         # Gerando amostras
-        sample = Sample(load_det, self.mode, PV_LOAD_CONNECTION, EV_LOAD_CONNECTION)
+        sample = Sample(load_det, self.mode, PV_LOAD_CONNECTION, EV_LOAD_CONNECTION,
+                        EV_BUS_MAX_NUMBER_LIST)
 
         # Gerando vetores para o PDF
         power_p = np.zeros(self.number)
@@ -170,6 +172,12 @@ class Montecarlo:
         monitors_total_p3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
         monitors_total_q3 = np.zeros((len(dss.lines_allnames()), 24 * self.number))
 
+        # Tempo de recarga dos veículos
+        ev_parking_duration = []
+
+        # PDF da média horária do tempo de carregamento
+        ev_charging_time = []
+
         for n in range(self.number):
             # Compilando a rede
             dss.text("compile {}".format(os.path.dirname(sys.argv[0]) + "/ieee34.dss"))
@@ -177,7 +185,7 @@ class Montecarlo:
 
             # Montando amostras de carga, pv e ev
             pv = sample.get_pv_sample(len(PV_BUS_LIST))
-            ev_soc_init, ev_soc_min, ev_soc_hini, ev_curve, ev_power = sample.get_ev_sample(len(EV_BUS_LIST))
+            ev_curve, ev_power, ev_incoming, ev_t_duration = sample.get_ev_sample(len(EV_BUS_LIST))
             load = sample.get_load_sample(dss.loads_count(), pv, ev_curve)
 
             # Colocando curva de PEV
@@ -251,6 +259,13 @@ class Montecarlo:
                         monitors_total_q3[num, n * 24 + hour] = dss.monitors_channel(6)[hour]
                     num += 1
                 i += 1
+            # Análise do tempo de recarga
+            ev_parking_duration.extend(ev_t_duration)
+
+            # Análise do carregamento ao longo do dia
+            for ev_bus in range(len(EV_BUS_LIST)):
+                ev_charging_time.extend(ev_curve[ev_bus])
+
             # Aviso ao usuário
             print("Simulação ", str(n), " concluída!")
 
@@ -261,19 +276,24 @@ class Montecarlo:
 
         # Construindo boxplot das tensões
         monitors_name = dss.monitors_allnames()
-        allvoltagebus = Pdftotalvoltage(self.number, monitors_name, monitors_total_vmag1,
-                                        monitors_total_vmag2, monitors_total_vmag3)
-        allvoltagebus.get_voltage_all_bus_plot()
-        allvoltagebus.get_voltage_all_bus_csv()
+        pdftotalvoltage = Pdftotalvoltage(self.number, monitors_name, monitors_total_vmag1,
+                                          monitors_total_vmag2, monitors_total_vmag3)
+        pdftotalvoltage.get_voltage_all_bus_plot()
+        pdftotalvoltage.get_voltage_all_bus_csv()
 
         # Construindo curva média de tensão
-        meanvoltage = Pdfvoltagebus(vmag1_matrix, vphase1_matrix, vmag2_matrix, vphase2_matrix,
-                                    vmag3_matrix, vphase3_matrix)
-        meanvoltage.get_mean_pdf_voltage_csv()
-        meanvoltage.get_pdf_voltage_plot()
+        pdfvoltagebus = Pdfvoltagebus(vmag1_matrix, vphase1_matrix, vmag2_matrix, vphase2_matrix,
+                                      vmag3_matrix, vphase3_matrix)
+        pdfvoltagebus.get_mean_pdf_voltage_csv()
+        pdfvoltagebus.get_pdf_voltage_plot()
 
         # Recebendo PDF das potências de todas as barras
-        alloutputpower = Pdfoutputpower(self.number, monitors_name, monitors_total_p1, monitors_total_q1,
+        pdfoutputpower = Pdfoutputpower(self.number, monitors_name, monitors_total_p1, monitors_total_q1,
                                         monitors_total_p2, monitors_total_q2, monitors_total_p3, monitors_total_q3)
-        alloutputpower.get_outputpower_ev_bus()
-        alloutputpower.get_mean_outputpower_ev_bus()
+        pdfoutputpower.get_outputpower_ev_bus()
+        pdfoutputpower.get_mean_outputpower_ev_bus()
+
+        # Construindo curva de tempo de duração de recarga
+        pdfoutputev = Pdfoutputev(self.number, ev_parking_duration, ev_charging_time)
+        pdfoutputev.get_parking_duration()
+        pdfoutputev.get_charging_time()

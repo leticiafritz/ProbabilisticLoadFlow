@@ -1,5 +1,6 @@
 # ---------- BIBLIOTECAS ----------
 import warnings
+
 warnings.filterwarnings('ignore')
 
 import numpy as np
@@ -13,7 +14,7 @@ from copulas.multivariate import GaussianMultivariate
 SD_LOAD = .05
 ALFA_PV, BETA_PV = 4, 2.5
 MU_EV, SD_EV = 3.2, 0.88  # 30, 5
-MU_EV_HOUR_ARRIVE, SD_EV_HOUR = 19, 3.4  # [Wu, 2013], carro estaciona para carregar às 17:36
+MU_EV_HOUR_ARRIVE, SD_EV_HOUR = 20, 2.4  # [Wu, 2013], carro estaciona para carregar às 17:36
 
 # VARIAVEIS GLOBAIS PARA PV
 R_CERTAIN_POINT = 150
@@ -47,18 +48,20 @@ def get_ev_soc():
 
 
 class Sample:
-    def __init__(self, load, mode, pv_connection, ev_connection):
+    def __init__(self, load, mode, pv_connection, ev_connection, ev_max_connection):
         self.load = pd.DataFrame(load)
         self.mode = mode
         self.copula = GaussianMultivariate()
         self.pv_connection = pv_connection
         self.ev_connection = ev_connection
+        self.ev_max_connection = ev_max_connection
 
     def get_load_sample(self, bus, pv_curve, ev_curve):
         load = {}
         if self.mode == 0:
             for n in range(bus):
-                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
+                load[n] = np.random.normal(self.load.iloc[:, n],
+                                           SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
         elif self.mode == 1:
             for n in range(bus):
                 load_aux = np.random.normal(self.load.iloc[:, n], SD_LOAD)
@@ -175,35 +178,48 @@ class Sample:
 
     # CONFIGURANDO AMOSTRA EV
     def get_ev_sample(self, bus):
-        ev_soc_init = {}
-        ev_soc_min = {}
-        ev_soc_hini = {}
         ev_curve = {}
+        ev_curve_aux = [0]*24
         ev_power = {}
+        ev_power_aux = 0
+        ev_incoming = [0] * bus
+        ev_t_duration = []
         for bus_i in range(bus):
-            # SOC do veículo elétrico
-            soc_init, soc_min, soc_hini = get_ev_soc()
-            ev_soc_init[bus_i] = soc_init
-            ev_soc_min[bus_i] = soc_min
-            ev_soc_hini[bus_i] = soc_hini
-            # Estimando tempos do carregamento
-            t_duration_charge = np.random.randint(2, 6)
-            t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
-            while t_start_charge > 24:
+            # Quantidade de EV
+            ev_incoming[bus_i] = np.random.randint(int(self.ev_max_connection[bus_i] / 3),
+                                                   self.ev_max_connection[bus_i])
+            for ev_i in range(ev_incoming[bus_i]):
+                # SOC do veículo elétrico
+                soc_init, soc_min, soc_hini = get_ev_soc()
+                # Estimando tempos do carregamento
+                t_duration_charge = 0
+                while t_duration_charge <= 0:
+                    choice = np.random.randint(1, 4)
+                    if choice == 1:
+                        t_duration_charge = np.random.randint(1, 6)
+                    elif choice == 2:
+                        t_duration_charge = round(np.random.normal(3, 0.50))
+                    else:
+                        t_duration_charge = round(np.random.normal(6, 0.75))
+                ev_t_duration.append(t_duration_charge)
                 t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
-            # Construindo curva
-            curve = [0] * (t_start_charge - 1)
-            curve.extend([1] * t_duration_charge)
-            if len(curve) < 24:
-                curve.extend([0] * (24 - len(curve)))
-            else:
-                curve_aux = curve[24:]
-                n = len(curve_aux)
-                for i in range(n):
-                    curve[i] = curve_aux[i]
-            ev_curve[bus_i] = curve[0:24]
-            # Energia do carro
-            energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
-            ev_power[bus_i] = energy / t_duration_charge
+                while t_start_charge > 24:
+                    t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
+                # Construindo curva
+                curve = [0] * (t_start_charge - 1)
+                curve.extend([1] * t_duration_charge)
+                if len(curve) < 24:
+                    curve.extend([0] * (24 - len(curve)))
+                else:
+                    curve_aux = curve[24:]
+                    n = len(curve_aux)
+                    for i in range(n):
+                        curve[i] = curve_aux[i]
+                ev_curve_aux = ev_curve_aux + np.asarray(curve[0:24])
+                # Energia do carro
+                energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
+                ev_power_aux = ev_power_aux + energy / t_duration_charge
+            ev_curve[bus_i] = ev_curve_aux
+            ev_power[bus_i] = ev_power_aux
 
-        return ev_soc_init, ev_soc_min, ev_soc_hini, ev_curve, ev_power
+        return ev_curve, ev_power, ev_incoming, ev_t_duration
