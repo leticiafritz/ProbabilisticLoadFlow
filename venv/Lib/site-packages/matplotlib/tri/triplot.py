@@ -6,11 +6,13 @@ def triplot(ax, *args, **kwargs):
     """
     Draw a unstructured triangular grid as lines and/or markers.
 
-    The triangulation to plot can be specified in one of two ways; either::
+    The triangulation to plot can be specified in one of two ways;
+    either::
 
       triplot(triangulation, ...)
 
-    where triangulation is a `.Triangulation` object, or
+    where triangulation is a :class:`matplotlib.tri.Triangulation`
+    object, or
 
     ::
 
@@ -20,17 +22,18 @@ def triplot(ax, *args, **kwargs):
       triplot(x, y, mask=mask, ...)
       triplot(x, y, triangles, mask=mask, ...)
 
-    in which case a Triangulation object will be created.  See `.Triangulation`
-    for a explanation of these possibilities.
+    in which case a Triangulation object will be created.  See
+    :class:`~matplotlib.tri.Triangulation` for a explanation of these
+    possibilities.
 
-    The remaining args and kwargs are the same as for `~.Axes.plot`.
+    The remaining args and kwargs are the same as for
+    :meth:`~matplotlib.axes.Axes.plot`.
 
-    Returns
-    -------
-    lines : `~matplotlib.lines.Line2D`
-        The drawn triangles edges.
-    markers : `~matplotlib.lines.Line2D`
-        The drawn marker nodes.
+    Return a list of 2 :class:`~matplotlib.lines.Line2D` containing
+    respectively:
+
+        - the lines plotted for triangles edges
+        - the markers plotted for triangles nodes
     """
     import matplotlib.axes
 

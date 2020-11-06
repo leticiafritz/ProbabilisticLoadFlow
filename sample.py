@@ -1,6 +1,12 @@
 # ---------- BIBLIOTECAS ----------
+import warnings
+warnings.filterwarnings('ignore')
+
 import numpy as np
+from numpy.random import multivariate_normal
 import scipy.stats as ss
+import pandas as pd
+from copulas.multivariate import GaussianMultivariate
 
 # ---------- VARIAVEIS GLOBAIS ----------
 # VARIAVEIS GLOBAIS PARA FDP
@@ -41,69 +47,163 @@ def get_ev_soc():
 
 
 class Sample:
-    def __init__(self, load):
-        self.load = load
+    def __init__(self, load, mode, pv_connection, ev_connection):
+        self.load = pd.DataFrame(load)
+        self.mode = mode
+        self.copula = GaussianMultivariate()
+        self.pv_connection = pv_connection
+        self.ev_connection = ev_connection
 
-    def get_load_sample(self):
-        # Carga
-        load = np.random.normal(self.load, SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
+    def get_load_sample(self, bus, pv_curve, ev_curve):
+        load = {}
+        if self.mode == 0:
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
+        elif self.mode == 1:
+            for n in range(bus):
+                load_aux = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                load[n] = [float(item) for item in load_aux]
+            df = pd.DataFrame.from_dict(load)
+            self.copula.fit(df)
+            load = self.copula.sample(len(df))
+        elif self.mode == 2:
+            load_aux = {}
+            pv_total_curve = {0: pv_curve[0], 1: pv_curve[1], 2: pv_curve[2], 3: pv_curve[2], 4: pv_curve[3],
+                              5: pv_curve[4], 6: pv_curve[5], 7: pv_curve[5], 8: pv_curve[5], 9: pv_curve[6],
+                              10: pv_curve[7], 11: pv_curve[7], 12: pv_curve[7], 13: pv_curve[7],
+                              14: pv_curve[8], 15: pv_curve[8], 16: pv_curve[8], 17: pv_curve[9],
+                              18: pv_curve[9], 19: pv_curve[10], 20: pv_curve[11], 21: pv_curve[12],
+                              22: pv_curve[13]}
+            pv_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if n in self.pv_connection:
+                    load_aux[0] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[1] = [float(item) for item in pv_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[0]
+                    pv_number += 1
+        elif self.mode == 3:
+            load_aux = {}
+            ev_total_curve = {0: ev_curve[0], 1: ev_curve[0], 2: ev_curve[0], 3: ev_curve[1], 4: ev_curve[1],
+                              5: ev_curve[1], 6: ev_curve[1], 7: ev_curve[2], 8: ev_curve[2], 9: ev_curve[3],
+                              10: ev_curve[3], 11: ev_curve[3], 12: ev_curve[3], 13: ev_curve[3],
+                              14: ev_curve[3], 15: ev_curve[3], 16: ev_curve[4]}
+            ev_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if n in self.ev_connection:
+                    load_aux[0] = [float(item) for item in load[n]]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[1] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[0]
+                    ev_number += 1
+        elif self.mode == 4:
+            load_aux = {}
+            pv_total_curve = {0: pv_curve[0], 1: pv_curve[1], 2: pv_curve[2], 3: pv_curve[2], 4: pv_curve[3],
+                              5: pv_curve[4], 6: pv_curve[5], 7: pv_curve[5], 8: pv_curve[5], 9: pv_curve[6],
+                              10: pv_curve[7], 11: pv_curve[7], 12: pv_curve[7], 13: pv_curve[7],
+                              14: pv_curve[8], 15: pv_curve[8], 16: pv_curve[8], 17: pv_curve[9],
+                              18: pv_curve[9], 19: pv_curve[10], 20: pv_curve[11], 21: pv_curve[12],
+                              22: pv_curve[13]}
+            ev_total_curve = {0: ev_curve[0], 1: ev_curve[0], 2: ev_curve[0], 3: ev_curve[1], 4: ev_curve[1],
+                              5: ev_curve[1], 6: ev_curve[1], 7: ev_curve[2], 8: ev_curve[2], 9: ev_curve[3],
+                              10: ev_curve[3], 11: ev_curve[3], 12: ev_curve[3], 13: ev_curve[3],
+                              14: ev_curve[3], 15: ev_curve[3], 16: ev_curve[4]}
+            pv_number = 0
+            ev_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if (n in self.pv_connection) and (n in self.ev_connection):
+                    load_aux[0] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[1] = [float(item) for item in pv_aux]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[2] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[0]
+                    pv_number += 1
+                    ev_number += 1
+                elif n in self.pv_connection:
+                    load_aux[0] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[1] = [float(item) for item in pv_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[0]
+                    pv_number += 1
+                elif n in self.ev_connection:
+                    load_aux[0] = [float(item) for item in load[n]]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[1] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[0]
+                    ev_number += 1
 
         return load
 
     # FUNÇÃO DE POTÊCIA GERADA DA PV
-    def get_pv_sample(self):
-        # Função de distribuição de probabilidade da radiação solar
-        radiation = ss.beta.pdf(np.linspace(0, 1, 24), ALFA_PV, BETA_PV, 0, 1)  # beta [Yaotang, 2016]
-        radiation = radiation * R_FACTOR
-        # Configurando a curva da potência gerada kW
-        pv = [0] * 24
-        for n in range(np.size(pv)):
-            if 0 <= radiation[n] < R_CERTAIN_POINT:
-                pv[n] = PV_POWER_GENERATION * (radiation[n] ** 2 / (R_CERTAIN_POINT * R_STANDARD_CONDITION))
-            elif R_CERTAIN_POINT <= radiation[n] < R_STANDARD_CONDITION:
-                pv[n] = PV_POWER_GENERATION * (radiation[n] / R_STANDARD_CONDITION)
-            elif radiation[n] >= R_STANDARD_CONDITION:
-                pv[n] = PV_POWER_GENERATION
+    def get_pv_sample(self, bus):
+        pv_sample = {}
+        for i in range(bus):
+            # Função de distribuição de probabilidade da radiação solar
+            radiation = ss.beta.pdf(np.linspace(0, 1, 24), ALFA_PV, BETA_PV, 0, 1)  # beta [Yaotang, 2016]
+            radiation = radiation * R_FACTOR
+            # Configurando a curva da potência gerada kW
+            pv = [0] * 24
+            for n in range(np.size(pv)):
+                if 0 <= radiation[n] < R_CERTAIN_POINT:
+                    pv[n] = PV_POWER_GENERATION * (radiation[n] ** 2 / (R_CERTAIN_POINT * R_STANDARD_CONDITION))
+                elif R_CERTAIN_POINT <= radiation[n] < R_STANDARD_CONDITION:
+                    pv[n] = PV_POWER_GENERATION * (radiation[n] / R_STANDARD_CONDITION)
+                elif radiation[n] >= R_STANDARD_CONDITION:
+                    pv[n] = PV_POWER_GENERATION
+            pv_sample[i] = pv
 
-        return pv
+        return pv_sample
 
     # CONFIGURANDO AMOSTRA EV
-    def get_ev_sample(self):
-        # SOC do veículo elétrico
-        soc_init, soc_min, soc_hini = get_ev_soc()
-
-        # Estimando tempos do carregamento
-        t_duration_charge = np.random.randint(2, 6)
-        t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
-        while t_start_charge > 24:
+    def get_ev_sample(self, bus):
+        ev_soc_init = {}
+        ev_soc_min = {}
+        ev_soc_hini = {}
+        ev_curve = {}
+        ev_power = {}
+        for bus_i in range(bus):
+            # SOC do veículo elétrico
+            soc_init, soc_min, soc_hini = get_ev_soc()
+            ev_soc_init[bus_i] = soc_init
+            ev_soc_min[bus_i] = soc_min
+            ev_soc_hini[bus_i] = soc_hini
+            # Estimando tempos do carregamento
+            t_duration_charge = np.random.randint(2, 6)
             t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
+            while t_start_charge > 24:
+                t_start_charge = int(np.random.normal(MU_EV_HOUR_ARRIVE, SD_EV_HOUR))
+            # Construindo curva
+            curve = [0] * (t_start_charge - 1)
+            curve.extend([1] * t_duration_charge)
+            if len(curve) < 24:
+                curve.extend([0] * (24 - len(curve)))
+            else:
+                curve_aux = curve[24:]
+                n = len(curve_aux)
+                for i in range(n):
+                    curve[i] = curve_aux[i]
+            ev_curve[bus_i] = curve[0:24]
+            # Energia do carro
+            energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
+            ev_power[bus_i] = energy / t_duration_charge
 
-        # Construindo curva
-        curve = [0] * (t_start_charge - 1)
-        curve.extend([1] * t_duration_charge)
-        if len(curve) < 24:
-            curve.extend([0] * (24 - len(curve)))
-        else:
-            curve_aux = curve[24:]
-            n = len(curve_aux)
-            for i in range(n):
-                curve[i] = curve_aux[i]
-            curve = curve[0:24]
-
-        # Energia do carro
-        energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
-        power = energy / t_duration_charge
-
-        # construindo objeto
-        ev = Electricvehicle(soc_init, soc_min, soc_hini, curve, power)
-
-        return ev
-
-
-class Electricvehicle:
-    def __init__(self, soc_init, soc_min, soc_hini, curve, power):
-        self.soc_init = soc_init
-        self.soc_min = soc_min
-        self.soc_hini = soc_hini
-        self.curve = curve
-        self.power = power
+        return ev_soc_init, ev_soc_min, ev_soc_hini, ev_curve, ev_power
