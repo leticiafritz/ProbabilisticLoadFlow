@@ -92,7 +92,7 @@ def get_daily_pv(pv):
         dss.text("~ daily=LoadShape_pv_" + PV_BUS_LIST[i])
 
 
-def get_daily_ev(ev_curve, ev_power):
+def get_daily_ev(ev_mode, ev_curve, ev_power, ev_battery_capacity):
     df_curve = pd.DataFrame.from_dict(ev_curve)
     df_power = pd.DataFrame(ev_power, index=[0])
 
@@ -118,10 +118,16 @@ def get_daily_ev(ev_curve, ev_power):
     # Criando carga PEV
     for i in range(len(EV_BUS_LIST)):
         total_power = ev_power[i]
-        dss.text("New Load.EV_" + EV_BUS_LIST[i] + " bus1=" + EV_BUS_LIST[i] + " phases=3")
-        dss.text("~ conn=" + EV_BUS_CONNECTION_LIST[i] + " Model=" + str(EV_BUS_MODEL_LIST[i]))
-        dss.text("~ kV=" + str(EV_BUS_KV_LIST[i]) + " kW=" + str(total_power) + " kVAR=10")
-        dss.text("~ Status=variable daily=LoadShape_ev_" + EV_BUS_LIST[i])
+        if ev_mode == 0:
+            dss.text("New Load.EV_" + EV_BUS_LIST[i] + " bus1=" + EV_BUS_LIST[i] + " phases=3")
+            dss.text("~ conn=" + EV_BUS_CONNECTION_LIST[i] + " Model=" + str(EV_BUS_MODEL_LIST[i]))
+            dss.text("~ kV=" + str(EV_BUS_KV_LIST[i]) + " kW=" + str(total_power) + " kVAR=10")
+            dss.text("~ Status=variable daily=LoadShape_ev_" + EV_BUS_LIST[i])
+        elif ev_mode == 1:
+            storage = np.random.randint(20, 100)
+            dss.text("New Storage.battery_" + EV_BUS_LIST[i] + " phases=3 bus1=" + EV_BUS_LIST[i])
+            dss.text("~ kV=" + str(EV_BUS_KV_LIST[i]) + " kWRated=50")
+            dss.text("~ kWhRated=200 dispmode=follow daily=LoadShape_ev_" + EV_BUS_LIST[i] + " %stored=" + str(storage))
 
 
 def get_all_monitors():
@@ -132,9 +138,10 @@ def get_all_monitors():
 
 
 class Montecarlo:
-    def __init__(self, number, mode):
+    def __init__(self, number, mode, ev_mode):
         self.number = int(number)
         self.mode = int(mode)
+        self.ev_mode = int(ev_mode)
 
     def set_simulation(self):
         # Carregando arquivos
@@ -185,22 +192,29 @@ class Montecarlo:
 
             # Montando amostras de carga, pv e ev
             pv = sample.get_pv_sample(len(PV_BUS_LIST))
-            ev_curve, ev_power, ev_incoming, ev_t_duration = sample.get_ev_sample(len(EV_BUS_LIST))
+            ev_curve, ev_power, ev_incoming, ev_t_duration, ev_battery_capacity = \
+                sample.get_ev_sample(len(EV_BUS_LIST), self.ev_mode)
             load = sample.get_load_sample(dss.loads_count(), pv, ev_curve)
 
             # Colocando curva de PEV
             get_daily_load(load)
             get_daily_pv(pv)
-            get_daily_ev(ev_curve, ev_power)
+            get_daily_ev(self.ev_mode, ev_curve, ev_power, ev_battery_capacity)
 
             # Criando monitores para todas as barras
             get_all_monitors()
 
             # Solução
+            ##dss.text("new monitor.storage_power element=storage.battery_890 terminal=1 mode=1 ppolar=no")
+            ##dss.text("new monitor.storage_voltage element=storage.battery_890 terminal=1 mode=0")
+            ##dss.text("new monitor.storage_variable element=storage.battery_890 terminal=1 mode=3")
             dss.text("Set Mode=daily")
             dss.text("Set stepsize=1h")
             dss.text("Set number=24")
             dss.solution_solve()
+            ##dss.text("plot monitor object=storage_power channels=(1 3 5)")
+            ##dss.text("plot monitor object=storage_voltage channels=(1 3 5)")
+            ##dss.text("plot monitor object=storage_variable channels=(1)")
 
             # Recebendo Medidor
             power_p[n], power_q[n] = dss.meters_registervalues()[0], dss.meters_registervalues()[1]

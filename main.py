@@ -7,14 +7,15 @@
 #          SARIMA PARA PREVISÃO E O FLUXO DE CARGA PROBABILISTICO
 #          PARA CÁLCULO TÉCNICO
 # VERSÃO: 3.1
-# PROXIMO PASSO: 18. PROJEÇÃO DO AUMENTO DE EV
-#                19. PROJEÇÃO DO AUMENTO DA CARGA
-#                20. SIMULAR CASO COM V2G
+# PROXIMO PASSO: 19. PROJEÇÃO DO AUMENTO DA CARGA
+#                20. PROJEÇÃO DO AUMENTO DE EV
 #                21. SIMULAR CASO COM RESPOSTA A DEMANDA
 #                22. BLOCKCHAIN
 #################################################################
 
 # BIBLIOTECAS
+import sys
+
 from montecarlo import Montecarlo
 
 
@@ -33,10 +34,21 @@ def main():
     print("[3] correlação LOAD-EV")
     print("[4] correlação LOAD-PV-EV")
     simulation_mode = input("MODO DE SIMULAÇÃO DESEJADO: ")
-    print("Iniciando simulação, por favor, aguarde.")
+    print("-----")
+    print("Modo de simulação do veículo elétrico:")
+    print("[0] sem V2G")
+    print("[1] com V2G")
+    simulation_ev = input("MODO DE SIMULAÇÃO DO VEÍCULO ELÉTRICO:")
+
+    # Verificando possibilidade de entrada
+    if (0 <= int(simulation_mode) <= 4) and (0 <= int(simulation_ev) <= 1):
+        print("Iniciando simulação, por favor, aguarde ...")
+    else:
+        print("Os modos escolhidos não são permitidos. Encerrando processo.")
+        sys.exit()
 
     # Simulação de Monte Carlo
-    simulation = Montecarlo(simulation_number, simulation_mode)
+    simulation = Montecarlo(simulation_number, simulation_mode, simulation_ev)
     simulation.set_simulation()
 
 

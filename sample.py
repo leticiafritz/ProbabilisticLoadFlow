@@ -177,9 +177,9 @@ class Sample:
         return pv_sample
 
     # CONFIGURANDO AMOSTRA EV
-    def get_ev_sample(self, bus):
+    def get_ev_sample(self, bus, mode):
         ev_curve = {}
-        ev_curve_aux = [0]*24
+        ev_curve_aux = [0] * 24
         ev_power = {}
         ev_power_aux = 0
         ev_incoming = [0] * bus
@@ -219,7 +219,14 @@ class Sample:
                 # Energia do carro
                 energy = (soc_init - soc_hini) * EV_BATTERY_CAPACITY
                 ev_power_aux = ev_power_aux + energy / t_duration_charge
+            if mode == 1:
+                ev_curve_aux = [-item for item in ev_curve_aux]
+                charge_time = np.zeros(8)
+                discharge_time = np.random.randint(5, 15, 8)
+                discharge_curve = np.concatenate((charge_time, discharge_time))
+                discharge_curve = np.concatenate((discharge_curve, charge_time))
+                ev_curve_aux = ev_curve_aux + discharge_curve
             ev_curve[bus_i] = ev_curve_aux
             ev_power[bus_i] = ev_power_aux
 
-        return ev_curve, ev_power, ev_incoming, ev_t_duration
+        return ev_curve, ev_power, ev_incoming, ev_t_duration, EV_BATTERY_CAPACITY

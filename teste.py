@@ -1,10 +1,13 @@
-import scipy.stats as ss
+import warnings
+warnings.filterwarnings('ignore')
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(font='IPAGothic')
 import numpy as np
+import statsmodels.api as sm
 
-x = np.linspace(0, 6, 200)
-MU_EV, SD_EV = 0.418749176686875, 0.859455801705594  # 30, 5
-dist = ss.lognorm([SD_EV], loc=MU_EV)
-#y1 = beta.pdf(x, 4.5, 2.8, scale=8, loc=0)
-plt.plot(x, dist.pdf(x))
-plt.show()
+train = pd.read_csv('../input/train.csv', parse_dates=['date'], index_col='date')
+test = pd.read_csv('../input/test.csv', parse_dates=['date'], index_col='date')
+df = pd.concat([train, test], sort=True)
+sample = pd.read_csv('../input/sample_submission.csv')
