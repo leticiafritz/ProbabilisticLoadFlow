@@ -335,7 +335,7 @@ class Pdfoutputev:
         hour = 1
         nem_charging_time = []
         for item in self.ev_charging_time:
-            if item < 0:
+            if item > 0:
                 aux = [hour] * abs(int(item))
                 nem_charging_time.extend(aux)
             hour += 1

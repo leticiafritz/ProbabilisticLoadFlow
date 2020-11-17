@@ -12,6 +12,7 @@ from probabilitydistfunc import Pdfvoltagebus
 from probabilitydistfunc import Pdftotalvoltage
 from probabilitydistfunc import Pdfoutputpower
 from probabilitydistfunc import Pdfoutputev
+from pldpredict import Pldpredict
 
 # ---------- OBJETOS ----------
 dss = py_dss_interface.DSSDLL()
@@ -138,18 +139,26 @@ def get_all_monitors():
 
 
 class Montecarlo:
-    def __init__(self, number, mode, ev_mode):
+    def __init__(self, number, mode, ev_mode, rtp_mode):
         self.number = int(number)
         self.mode = int(mode)
         self.ev_mode = int(ev_mode)
+        self.rtp_mode = int(rtp_mode)
 
     def set_simulation(self):
         # Carregando arquivos
         load_det = pd.read_csv(os.path.dirname(sys.argv[0]) + "/curve_load.csv", header=0, sep=';')
 
+        # Previsão do mercado spot
+        pld = pd.read_excel(os.path.dirname(sys.argv[0]) + '/pld_sombra_2020.xlsx',
+                            sheet_name='train', index_col='date', parse_dates=['date'])
+        pld_day_ahead = Pldpredict(pld)
+        ##pld_pred = pld_day_ahead.get_day_ahead()
+        pld_pred = pld_day_ahead.get_pld_dummy()
+
         # Gerando amostras
         sample = Sample(load_det, self.mode, PV_LOAD_CONNECTION, EV_LOAD_CONNECTION,
-                        EV_BUS_MAX_NUMBER_LIST)
+                        EV_BUS_MAX_NUMBER_LIST, pld_pred)
 
         # Gerando vetores para o PDF
         power_p = np.zeros(self.number)
@@ -194,7 +203,10 @@ class Montecarlo:
             pv = sample.get_pv_sample(len(PV_BUS_LIST))
             ev_curve, ev_power, ev_incoming, ev_t_duration, ev_battery_capacity = \
                 sample.get_ev_sample(len(EV_BUS_LIST), self.ev_mode)
-            load = sample.get_load_sample(dss.loads_count(), pv, ev_curve)
+            if self.rtp_mode == 0:
+                load = sample.get_load_sample_nrtp(dss.loads_count(), pv, ev_curve)
+            else:
+                load = sample.get_load_sample_rtp(dss.loads_count(), pv, ev_curve)
 
             # Colocando curva de PEV
             get_daily_load(load)

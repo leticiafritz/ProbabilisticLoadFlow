@@ -48,15 +48,16 @@ def get_ev_soc():
 
 
 class Sample:
-    def __init__(self, load, mode, pv_connection, ev_connection, ev_max_connection):
+    def __init__(self, load, mode, pv_connection, ev_connection, ev_max_connection, pld_pred):
         self.load = pd.DataFrame(load)
         self.mode = mode
         self.copula = GaussianMultivariate()
         self.pv_connection = pv_connection
         self.ev_connection = ev_connection
         self.ev_max_connection = ev_max_connection
+        self.pld_pred = pld_pred
 
-    def get_load_sample(self, bus, pv_curve, ev_curve):
+    def get_load_sample_nrtp(self, bus, pv_curve, ev_curve):
         load = {}
         if self.mode == 0:
             for n in range(bus):
@@ -152,6 +153,114 @@ class Sample:
                     self.copula.fit(df)
                     load_sample = self.copula.sample(len(df))
                     load[n] = load_sample[0]
+                    ev_number += 1
+
+        return load
+
+    def get_load_sample_rtp(self, bus, pv_curve, ev_curve):
+        load = {}
+        load_aux = {}
+        load_aux[0] = [float(-item) for item in self.pld_pred]
+        if self.mode == 0:
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n],
+                                           SD_LOAD)  # distribuição normal [Morshed, 2018]  [Unidade: kWh]
+                load_aux[1] = [float(item) for item in load[n]]
+                df = pd.DataFrame.from_dict(load_aux)
+                self.copula.fit(df)
+                load_sample = self.copula.sample(len(df))
+                load[n] = load_sample[1]
+        elif self.mode == 1:
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                load_aux[1] = [float(item) for item in load[n]]
+                df = pd.DataFrame.from_dict(load_aux)
+                self.copula.fit(df)
+                load_sample = self.copula.sample(len(df))
+                load[n] = load_sample[1]
+            df = pd.DataFrame.from_dict(load)
+            self.copula.fit(df)
+            load = self.copula.sample(len(df))
+        elif self.mode == 2:
+            pv_total_curve = {0: pv_curve[0], 1: pv_curve[1], 2: pv_curve[2], 3: pv_curve[2], 4: pv_curve[3],
+                              5: pv_curve[4], 6: pv_curve[5], 7: pv_curve[5], 8: pv_curve[5], 9: pv_curve[6],
+                              10: pv_curve[7], 11: pv_curve[7], 12: pv_curve[7], 13: pv_curve[7],
+                              14: pv_curve[8], 15: pv_curve[8], 16: pv_curve[8], 17: pv_curve[9],
+                              18: pv_curve[9], 19: pv_curve[10], 20: pv_curve[11], 21: pv_curve[12],
+                              22: pv_curve[13]}
+            pv_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if n in self.pv_connection:
+                    load_aux[1] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[2] = [float(item) for item in pv_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[1]
+                    pv_number += 1
+        elif self.mode == 3:
+            ev_total_curve = {0: ev_curve[0], 1: ev_curve[0], 2: ev_curve[0], 3: ev_curve[1], 4: ev_curve[1],
+                              5: ev_curve[1], 6: ev_curve[1], 7: ev_curve[2], 8: ev_curve[2], 9: ev_curve[3],
+                              10: ev_curve[3], 11: ev_curve[3], 12: ev_curve[3], 13: ev_curve[3],
+                              14: ev_curve[3], 15: ev_curve[3], 16: ev_curve[4]}
+            ev_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if n in self.ev_connection:
+                    load_aux[1] = [float(item) for item in load[n]]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[2] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[1]
+                    ev_number += 1
+        elif self.mode == 4:
+            pv_total_curve = {0: pv_curve[0], 1: pv_curve[1], 2: pv_curve[2], 3: pv_curve[2], 4: pv_curve[3],
+                              5: pv_curve[4], 6: pv_curve[5], 7: pv_curve[5], 8: pv_curve[5], 9: pv_curve[6],
+                              10: pv_curve[7], 11: pv_curve[7], 12: pv_curve[7], 13: pv_curve[7],
+                              14: pv_curve[8], 15: pv_curve[8], 16: pv_curve[8], 17: pv_curve[9],
+                              18: pv_curve[9], 19: pv_curve[10], 20: pv_curve[11], 21: pv_curve[12],
+                              22: pv_curve[13]}
+            ev_total_curve = {0: ev_curve[0], 1: ev_curve[0], 2: ev_curve[0], 3: ev_curve[1], 4: ev_curve[1],
+                              5: ev_curve[1], 6: ev_curve[1], 7: ev_curve[2], 8: ev_curve[2], 9: ev_curve[3],
+                              10: ev_curve[3], 11: ev_curve[3], 12: ev_curve[3], 13: ev_curve[3],
+                              14: ev_curve[3], 15: ev_curve[3], 16: ev_curve[4]}
+            pv_number = 0
+            ev_number = 0
+            for n in range(bus):
+                load[n] = np.random.normal(self.load.iloc[:, n], SD_LOAD)
+                if (n in self.pv_connection) and (n in self.ev_connection):
+                    load_aux[1] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[2] = [float(item) for item in pv_aux]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[3] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[1]
+                    pv_number += 1
+                    ev_number += 1
+                elif n in self.pv_connection:
+                    load_aux[1] = [float(item) for item in load[n]]
+                    pv_aux = pv_total_curve[pv_number]
+                    load_aux[2] = [float(item) for item in pv_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[1]
+                    pv_number += 1
+                elif n in self.ev_connection:
+                    load_aux[1] = [float(item) for item in load[n]]
+                    ev_aux = ev_total_curve[ev_number]
+                    load_aux[2] = [float(item) for item in ev_aux]
+                    df = pd.DataFrame.from_dict(load_aux)
+                    self.copula.fit(df)
+                    load_sample = self.copula.sample(len(df))
+                    load[n] = load_sample[1]
                     ev_number += 1
 
         return load
