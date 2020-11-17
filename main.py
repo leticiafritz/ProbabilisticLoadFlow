@@ -6,7 +6,7 @@
 #          TARIFÁRIO E QUANTIDADE DE EV EM MICRORREDE UTILIZANDO
 #          SARIMA PARA PREVISÃO E O FLUXO DE CARGA PROBABILISTICO
 #          PARA CÁLCULO TÉCNICO
-# VERSÃO: 3.1
+# VERSÃO: 4.1
 # PROXIMO PASSO: 21. COMMUNITY MARKET
 #################################################################
 
